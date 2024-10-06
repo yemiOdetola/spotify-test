@@ -12,7 +12,6 @@ import "./footer.styles.css";
 
 import { currentTrack$, isPlaying$, volume$, currentTrackIndex$, discoverWeekly$ } from "../../store";
 
-
 const isValidTrack = (track: any) => track && track.id && track.name;
 
 function Footer() {
@@ -22,6 +21,9 @@ function Footer() {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [playlistTracks, setPlaylistTracks] = useState<any[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
+
+  const [isLooping, setIsLooping] = useState<boolean>(false);
+  const [isShuffling, setIsShuffling] = useState<boolean>(false);
 
   const useSubscriptions = () => {
     useEffect(() => {
@@ -45,11 +47,22 @@ function Footer() {
 
   useSubscriptions();
 
-  const handlePlayPause = () => isPlaying$.next(!isPlaying);
-
+  const handlePlayPause = () => {
+    if (isPlaying === false && currentTrack == null) {
+      currentTrack$.next(playlistTracks[1]?.track);
+      currentTrackIndex$.next(2);
+    }
+    isPlaying$.next(!isPlaying);
+  };
 
   const handleVolumeChange = (_event: ChangeEvent<{}>, newValue: number | number[]) => {
     volume$.next(newValue as number);
+  };
+
+  const shufflePlaylist = () => {
+    return;
+    // const indices = playlistTracks.map((_, index) => index);
+    // setShuffledIndices(indices);
   };
 
   const skipToTrack = (indexUpdater: (index: number) => number, boundaryCheck: (index: number) => boolean) => {
@@ -61,7 +74,6 @@ function Footer() {
         newIndex = indexUpdater(newIndex);
         newTrack = playlistTracks[newIndex]?.track;
       }
-
       if (isValidTrack(newTrack)) {
         currentTrack$.next(newTrack);
         currentTrackIndex$.next(newIndex);
@@ -71,12 +83,34 @@ function Footer() {
   };
 
   const handleSkipNext = () => {
-    skipToTrack((index) => index + 1, (index) => index < playlistTracks.length - 1);
+    if (currentTrackIndex !== null) {
+      if (currentTrackIndex < playlistTracks.length - 1 || isLooping) {
+        skipToTrack(
+          (index) => (index + 1) % playlistTracks.length,
+          (index) => index < playlistTracks.length - 1 || isLooping
+        );
+      }
+    }
   };
 
   const handleSkipPrevious = () => {
-    skipToTrack((index) => index - 1, (index) => index > 0);
+    if (currentTrackIndex !== null) {
+      skipToTrack(
+        (index) => (index - 1 + playlistTracks.length) % playlistTracks.length,
+        (index) => index > 0 || isLooping
+      );
+    }
   };
+
+  const toggleShuffle = () => {
+    setIsShuffling(!isShuffling);
+    if (!isShuffling) {
+      shufflePlaylist();
+    }
+  };
+
+  const toggleLoop = () => setIsLooping(!isLooping);
+
 
   return (
     <div className="footer">
@@ -92,7 +126,7 @@ function Footer() {
         )}
       </div>
       <div className="footer_center">
-        <ShuffleIcon className="footer_green" />
+        <ShuffleIcon className={isShuffling ? "footer_green" : ""} onClick={toggleShuffle} />
         <SkipPreviousIcon className="footer_icon" onClick={handleSkipPrevious} />
         {isPlaying ? (
           <PauseCircleOutlineIcon fontSize="large" className="footer_icon" onClick={handlePlayPause} />
@@ -100,7 +134,7 @@ function Footer() {
           <PlayCircleOutlineIcon fontSize="large" className="footer_icon" onClick={handlePlayPause} />
         )}
         <SkipNextIcon className="footer_icon" onClick={handleSkipNext} />
-        <RepeatIcon className="footer_green" />
+        <RepeatIcon className={isLooping ? "footer_green" : ""} onClick={toggleLoop} />
       </div>
       <div className="footer_right">
         <Grid container spacing={2}>
